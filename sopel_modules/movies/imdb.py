@@ -29,16 +29,12 @@ class Movies:
         #but sometimes it returns duplicated results
         if 'Search' in result:
           seen = set()
-          i=0
-          while i < len(result['Search']):
-              r = result['Search'][i]
-              key = r['imdbID']
-              if key in seen:
-                  result['Search'].pop(i)
-              else:
-                  seen.add(key)
-                  i += 1
-
+          def is_in(x):
+              r=x['imdbID'] in seen
+              if not r:
+                  seen.add(x['imdbID'])
+              return r
+          result['Search'] = list(filter(is_in, result['Search']))
           result['totalResults'] = str(len(result['Search']))
 
         if 'totalResults' in result and int(result["totalResults"]) == 1:
