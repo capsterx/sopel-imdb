@@ -28,13 +28,18 @@ class Movies:
         #There has to be a better way to filter this
         #but sometimes it returns duplicated results
         if 'Search' in result:
-          r = []
-          for i in result['Search']:
-              if len([x for x in r if x['imdbID'] == i['imdbID']]) == 0:
-                  r.append(i)
+          seen = set()
+          i=0
+          while i < len(result['Search']):
+              r = result['Search'][i]
+              key = r['imdbID']
+              if key in seen:
+                  result['Search'].pop(i)
+              else:
+                  seen.add(key)
+                  i += 1
 
-          result['Search'] = r
-          result['totalResults'] = len(r)
+          result['totalResults'] = str(len(result['Search']))
 
         if 'totalResults' in result and int(result["totalResults"]) == 1:
            return self._format_long(self.imdb.get_by_id(result["Search"][0]["imdbID"]))
