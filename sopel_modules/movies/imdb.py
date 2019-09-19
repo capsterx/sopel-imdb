@@ -35,6 +35,15 @@ class Movies:
     def _found_single_match(self, result):
         return 'totalResults' in result and int(result["totalResults"]) == 1
 
+    def _try_year(self, text):
+        try:
+            a = text.split()
+            year = int(a[-1])
+            text = text[0:-(len(a[-1])+1)]
+        except (IndexError, ValueError):
+            return None
+        return self._lookup(text, year)
+
     def _lookup(self, text, year=None):
         result = self.imdb.search(text, year)
         self._filter_duplicates(result)
@@ -43,12 +52,9 @@ class Movies:
            return self._format_long(self.imdb.get_by_id(result["Search"][0]["imdbID"]))
 
         if year is None:
-            try:
-                a = text.split()
-                year = int(a[-1])
-                return self._lookup(text[0:-(len(a[-1])+1)], year)
-            except Exception as e:
-                pass
+            ret = self._try_year(text)
+            if ret:
+                return ret
         else:
             r = self._good_enough(text, year, result)
             if r:
