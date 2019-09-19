@@ -19,12 +19,7 @@ class Movies:
         else:
             return None
 
-    def _lookup(self, text, year=None):
-        try:
-            result = self.imdb.search(text, year)
-        except Exception as e:
-            return str(e)
-
+    def _filter_duplicates(self, result):
         #There has to be a better way to filter this
         #but sometimes it returns duplicated results
         if 'Search' in result:
@@ -33,11 +28,18 @@ class Movies:
               r=x['imdbID'] in seen
               if not r:
                   seen.add(x['imdbID'])
-              return r
+              return not r
           result['Search'] = list(filter(is_in, result['Search']))
           result['totalResults'] = str(len(result['Search']))
 
-        if 'totalResults' in result and int(result["totalResults"]) == 1:
+    def _found_single_match(self, result):
+        return 'totalResults' in result and int(result["totalResults"]) == 1
+
+    def _lookup(self, text, year=None):
+        result = self.imdb.search(text, year)
+        self._filter_duplicates(result)
+
+        if self._found_single_match(result):
            return self._format_long(self.imdb.get_by_id(result["Search"][0]["imdbID"]))
 
         if year is None:
