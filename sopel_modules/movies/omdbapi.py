@@ -14,14 +14,16 @@ class Imdb:
     def headers(self):
         return {}
 
-    def querystring(self, search, year=None):
+    def querystring(self, search, year=None, typ=None):
         d = {"page":"1","r":"json","s": search, 'apikey': self.key}
         if year:
             d['y'] = str(year)
+        if typ:
+            d['type'] = typ
         return d
 
-    def search(self, search, year=None):
-        response = requests.request("GET", self.url, headers=self.headers, params=self.querystring(search, year))
+    def search(self, search, year=None, typ=None):
+        response = requests.request("GET", self.url, headers=self.headers, params=self.querystring(search, year, typ))
         return json.loads(response.text)
 
     def get_by_id(self, imdbID):
