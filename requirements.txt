@@ -1,3 +1,2 @@
-sopel>=6.0,<7
+sopel
 requests
-pytz
