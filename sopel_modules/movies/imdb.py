@@ -1,15 +1,24 @@
 import re
 
 class Movies:
-    title_year = re.compile(r"([^/]+)/([0-9]{4,4}(-[0-9]{4,4})?)\s*$")
-    title_year_type = re.compile(r"([^/]+)/([0-9]{4,4}(?:-[0-9]{4,4})?)/(series|movie|episode)\s*$")
+    title_year = re.compile(r"([^/]+)/([0-9]{4,4}([-–][0-9]{4,4})?)\s*$")
+    title_year_type = re.compile(r"([^/]+)/([0-9]{4,4}(?:[-–][0-9]{4,4})?)/(series|movie|episode)\s*$")
+    ratings_mapping = {
+        "Internet Movie Database": "IMDB",
+        "Rotten Tomatoes": "Tomatoes",
+        "Metacritic": "Metacritic"
+    }
 
     def __init__(self, api):
         #self.imdb = rapidapi.Imdb(rapid_host, rapid_key)
         self.imdb = api
 
     def _format_long(self, m):
-        return f"{m['Title']} | {m['Year']} | {m['Rated']} | {m['Released']} | {m['imdbRating']}/10 | {m['Plot']} | https://www.imdb.com/title/{m['imdbID']}"
+        raitings = [f"{Movies.ratings_mapping.get(x['Source'], x['Source'])} {x['Value']}" for x in m['Ratings']]
+        ret = [m['Title'], m['Year'], m['Rated'], m['Genre'], m['Released'], m['Runtime']]
+        ret += raitings
+        ret += [m['Plot'], f"https://www.imdb.com/title/{m['imdbID']}", m['Language'], m['Actors']]
+        return ' | '.join([x for x in ret if x != "N/A"])
 
     def _format_short(self, i):
         return f"{i['Title']}/{i['Year']}/{i['Type']}"
@@ -53,18 +62,14 @@ class Movies:
         return self._lookup(text, year)
 
     def _lookup(self, text, year=None, typ=None):
-        m = Movies.title_year.match(text)
-        if m:
-          return self._lookup(m.group(1), m.group(2))
-        m = Movies.title_year_type.match(text)
-        if m:
-          return self._lookup(m.group(1), m.group(2), m.group(3))
-
         result = self.imdb.search(text, year, typ)
+        if 'Error' in result:
+            return None, result['Error']
+
         self._filter_duplicates(result)
 
         if self._found_single_match(result):
-           return self._format_long(self.imdb.get_by_id(result["Search"][0]["imdbID"]))
+           return True, self._format_long(self.imdb.get_by_id(result["Search"][0]["imdbID"]))
 
         if year is None:
             ret = self._try_year(text)
@@ -73,15 +78,28 @@ class Movies:
         else:
             r = self._good_enough(text, year, result)
             if r:
-                return self._format_long(self.imdb.get_by_id(r["imdbID"]))
+                return True, self._format_long(self.imdb.get_by_id(r["imdbID"]))
         
-        if 'Error' in result:
-            return result['Error']
-
-        return self._format_group(result)
+        return False, self._format_group(result)
 
     def lookup(self, text):
-        return self._lookup(text)
+        text = text.strip()
+        year = None
+        typ = None
+        m = Movies.title_year_type.match(text)
+        if m:
+          text = m.group(1)
+          year = m.group(2)
+          typ = m.group(3)
+        elif not m:
+          m = Movies.title_year.match(text)
+          if m:
+            text = m.group(1)
+            year = m.group(2)
+        single, data =  self._lookup(text, year, typ)
+        if single is False and year is not None:
+            single, data = self._lookup(text, year[0:4], typ)
+        return data
 
 if __name__ == "__main__":
     from . import config
@@ -96,5 +114,6 @@ if __name__ == "__main__":
         api = rapidapi.Imdb(
               config.rapid_api_host,
               config.rapid_api_key)
+    print(sys.argv[1])
     movies = Movies(api)
     print(movies.lookup(sys.argv[1]))
